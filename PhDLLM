@@ -1,0 +1,185 @@
+pip install dash dash-cytoscape plotly
+python llm_workflow.py
+import dash
+from dash import dcc, html, Input, Output, State
+import dash_cytoscape as cyto
+import plotly.express as px
+import pandas as pd
+
+# Initialize app
+app = dash.Dash(__name__)
+app.title = "LLM-Enhanced PhD Research Workflow"
+
+# Research domain data
+domains = {
+    'biology': {
+        'metrics': {'time_saved': 65, 'cost_reduction': 40, 'accuracy_gain': 22},
+        'example': "Gene-disease association mining from 50k+ papers"
+    },
+    'cs': {
+        'metrics': {'time_saved': 72, 'cost_reduction': 55, 'accuracy_gain': 18},
+        'example': "Code vulnerability detection in 1M+ LOC"
+    },
+    'social_science': {
+        'metrics': {'time_saved': 58, 'cost_reduction': 35, 'accuracy_gain': 29},
+        'example': "Sentiment analysis of 100k+ survey responses"
+    }
+}
+
+# Enhanced workflow nodes
+nodes = [
+    {'data': {'id': 'proposal', 'label': 'Research Proposal\nDevelopment'}, 'classes': 'phase'},
+    {'data': {'id': 'lit_review', 'label': 'Literature Review\n(LLM-Powered)'}, 'classes': 'llm'},
+    {'data': {'id': 'hypothesis', 'label': 'Hypothesis\nGeneration'}, 'classes': 'phase'},
+    {'data': {'id': 'experiment', 'label': 'Experiment Design'}, 'classes': 'phase'},
+    {'data': {'id': 'data_collect', 'label': 'Data Collection &\nAnnotation'}, 'classes': 'llm'},
+    {'data': {'id': 'analysis', 'label': 'Analysis &\nInterpretation'}, 'classes': 'llm'},
+    {'data': {'id': 'writing', 'label': 'Paper Writing &\nPeer Review'}, 'classes': 'llm'}
+]
+
+edges = [
+    {'data': {'source': 'proposal', 'target': 'lit_review'}},
+    {'data': {'source': 'lit_review', 'target': 'hypothesis'}},
+    {'data': {'source': 'hypothesis', 'target': 'experiment'}},
+    {'data': {'source': 'experiment', 'target': 'data_collect'}},
+    {'data': {'source': 'data_collect', 'target': 'analysis'}},
+    {'data': {'source': 'analysis', 'target': 'writing'}}
+]
+
+app.layout = html.Div([
+    html.Div([
+        html.H1("LLM-Augmented PhD Research Workflow", className="header"),
+        dcc.Dropdown(
+            id='domain-selector',
+            options=[
+                {'label': 'Biology', 'value': 'biology'},
+                {'label': 'Computer Science', 'value': 'cs'},
+                {'label': 'Social Science', 'value': 'social_science'}
+            ],
+            value='biology',
+            clearable=False
+        )
+    ], className='control-panel'),
+    
+    cyto.Cytoscape(
+        id='research-workflow',
+        layout={'name': 'dagre', 'nodeSep': 100},
+        style={'width': '100%', 'height': '600px'},
+        elements=nodes + edges,
+        stylesheet=[
+            {
+                'selector': 'node',
+                'style': {
+                    'label': 'data(label)',
+                    'background-color': '#2C3E50',
+                    'text-valign': 'center',
+                    'color': 'white',
+                    'font-size': '14px',
+                    'width': 120,
+                    'height': 120,
+                    'shape': 'ellipse'
+                }
+            },
+            {
+                'selector': '.llm',
+                'style': {
+                    'background-color': '#3498DB',
+                    'border-width': 2,
+                    'border-color': '#2980B9'
+                }
+            },
+            {
+                'selector': 'edge',
+                'style': {
+                    'width': 3,
+                    'line-color': '#7F8C8D',
+                    'target-arrow-color': '#7F8C8D',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier'
+                }
+            }
+        ]
+    ),
+    
+    html.Div([
+        html.Div(id='node-details', className='detail-card'),
+        dcc.Graph(id='metrics-chart')
+    ], className='dashboard-row'),
+    
+    dcc.Store(id='current-domain', data='biology')
+])
+
+@app.callback(
+    [Output('node-details', 'children'),
+     Output('metrics-chart', 'figure'),
+     Output('current-domain', 'data')],
+    [Input('research-workflow', 'tapNodeData'),
+     Input('domain-selector', 'value')],
+    [State('current-domain', 'data')]
+)
+def update_display(node_data, selected_domain, current_domain):
+    ctx = dash.callback_context
+    domain_data = domains[selected_domain]
+    
+    # Update metrics chart
+    df = pd.DataFrame({
+        'Metric': ['Time Saved (%)', 'Cost Reduction (%)', 'Accuracy Gain (%)'],
+        'Value': [domain_data['metrics']['time_saved'], 
+                 domain_data['metrics']['cost_reduction'],
+                 domain_data['metrics']['accuracy_gain']]
+    })
+    fig = px.bar(df, x='Value', y='Metric', orientation='h',
+                 title=f"Performance Metrics: {selected_domain.replace('_', ' ').title()}",
+                 color='Metric', 
+                 color_discrete_map={
+                     'Time Saved (%)': '#3498DB',
+                     'Cost Reduction (%)': '#2ECC71',
+                     'Accuracy Gain (%)': '#9B59B6'
+                 })
+    
+    # Node details
+    if ctx.triggered[0]['prop_id'] == 'domain-selector.value':
+        return [html.Div([
+                    html.H3("Domain Overview"),
+                    html.P(domain_data['example']),
+                    html.Ul([
+                        html.Li(f"Time saved: {domain_data['metrics']['time_saved']}%"),
+                        html.Li(f"Cost reduction: {domain_data['metrics']['cost_reduction']}%"),
+                        html.Li(f"Accuracy improvement: {domain_data['metrics']['accuracy_gain']}%")
+                    ])
+                ]), fig, selected_domain]
+    
+    if node_data:
+        node_id = node_data['id']
+        content = []
+        if node_id == 'lit_review':
+            content = [
+                html.H3("LLM-Powered Literature Review"),
+                html.P("Key capabilities:"),
+                html.Ul([
+                    html.Li("Automated paper categorization (TF-IDF + BERT embeddings)"),
+                    html.Li("Cross-lingual analysis support"),
+                    html.Li("Citation graph generation"),
+                    html.Li("Research gap identification")
+                ]),
+                html.Br(),
+                html.P(f"Example in {selected_domain.replace('_', ' ').title()}:"),
+                html.P(domain_data['example'])
+            ]
+        elif node_id == 'data_collect':
+            content = [
+                html.H3("Smart Data Collection"),
+                html.Ul([
+                    html.Li("Automated survey response coding"),
+                    html.Li("Image/text annotation with active learning"),
+                    html.Li("Bias detection in training data"),
+                    html.Li("Data anonymization workflows")
+                ])
+            ]
+        return [html.Div(content), fig, current_domain]
+    
+    return [html.Div("Select a research phase or domain"), fig, current_domain]
+
+if __name__ == '__main__':
+    app.run_server(debug=True, port=8051)
+
