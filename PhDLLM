@@ -182,4 +182,19 @@ def update_display(node_data, selected_domain, current_domain):
 
 if __name__ == '__main__':
     app.run_server(debug=True, port=8051)
+dcc.Checklist(
+    id='ethics-checklist',
+    options=[
+        {'label': 'Bias Audit Completed', 'value': 'bias'},
+        {'label': 'Data Anonymized', 'value': 'anon'}
+    ],
+    value=[]
+)
+# Add Gantt chart component
+dcc.Graph(figure=px.timeline(
+    df, x_start="Start", x_end="End", y="Task",
+    title="LLM-Accelerated Publication Timeline"
+))
+
+
 
